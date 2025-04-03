@@ -1,0 +1,178 @@
+// Add to playerController.ts
+export class PlayerController {
+  // ... existing code ...
+  
+  init() {
+    const startBtn = document.getElementById('start');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        this.handleStart();
+      });
+    }
+    
+    const numberOfPlayers: HTMLSelectElement | null = document.querySelector('#players');
+    if (numberOfPlayers) {
+      numberOfPlayers.addEventListener('change', (e: Event) => {
+        this.totalNoOfPlayers(e);
+      });
+    }
+    
+    const difficultySelection = document.querySelector('.difficulty-selection') as HTMLInputElement;
+    if (difficultySelection) {
+      difficultySelection.addEventListener('click', (e: Event) => {
+        this.selectGameDifficulty(e);
+      });
+    }
+    
+    // Add keyboard event listener for arrow keys
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      // Only process when game is active
+      if (this.players.length > 0) {
+        this.handleKeyboardControls(e);
+      }
+    });
+    
+    // Listen for game over event
+    document.addEventListener('gameOver', () => {
+      this.showGameOverScreen();
+    });
+  }
+  
+  handleKeyboardControls(e: KeyboardEvent) {
+    // Find current player
+    const currentPlayer = this.players.find((player) => player.turn);
+    if (!currentPlayer) return;
+    
+    switch (e.key) {
+      case 'ArrowUp':
+        this.movePlayer(currentPlayer, CONTROLS.UP);
+        break;
+      case 'ArrowDown':
+        this.movePlayer(currentPlayer, CONTROLS.DOWN);
+        break;
+      case 'ArrowLeft':
+        this.movePlayer(currentPlayer, CONTROLS.LEFT);
+        break;
+      case 'ArrowRight':
+        this.movePlayer(currentPlayer, CONTROLS.RIGHT);
+        break;
+    }
+  }
+  
+  movePlayer(player: Player, direction: string) {
+    let newX = player.position.x;
+    let newY = player.position.y;
+    let errorMessage = '';
+    
+    switch (direction) {
+      case CONTROLS.UP:
+        if (player.position.x === 0) {
+          errorMessage = ERROR.UP;
+        } else {
+          newX -= 1;
+        }
+        break;
+      case CONTROLS.DOWN:
+        if (player.position.x === this.rowAndCol.row - 1) {
+          errorMessage = ERROR.DOWN;
+        } else {
+          newX += 1;
+        }
+        break;
+      case CONTROLS.LEFT:
+        if (player.position.y === 0) {
+          errorMessage = ERROR.LEFT;
+        } else {
+          newY -= 1;
+        }
+        break;
+      case CONTROLS.RIGHT:
+        if (player.position.y === this.rowAndCol.column - 1) {
+          errorMessage = ERROR.RIGHT;
+        } else {
+          newY += 1;
+        }
+        break;
+    }
+    
+    // Check if new position has another player
+    if (!errorMessage && !this.utility.checkposition(this.players, newX, newY)) {
+      errorMessage = `You can't move ${direction} now!`;
+    }
+    
+    if (errorMessage) {
+      alert(errorMessage);
+      return;
+    }
+    
+    // Update player position
+    player.position.x = newX;
+    player.position.y = newY;
+    
+    // Update score and grid
+    const result = this.utility.addScore(this.currentGrid, this.cellTypes, player);
+    this.currentGrid = result.arr;
+    this.cellTypes = result.cellTypes;
+    
+    // Handle turn and display updated game
+    this.handleTurn();
+    this.view.displayGame(this.currentGrid, this.cellTypes, this.players);
+  }
+  
+  // Update handleController to use movePlayer
+  handleController(e: Event) {
+    const currentPlayer = this.players.find((player) => player.turn);
+    if (currentPlayer && e.target instanceof HTMLElement) {
+      const typeOfControl = e.target.closest('button')?.name;
+      if (typeOfControl) {
+        this.movePlayer(currentPlayer, typeOfControl);
+      }
+    }
+  }
+  
+  showGameOverScreen() {
+    // Find player with highest score
+    let winner = this.players[0];
+    for (let i = 1; i < this.players.length; i++) {
+      if (this.players[i].score > winner.score) {
+        winner = this.players[i];
+      }
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'game-over-modal';
+    
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h2>Game Over!</h2>
+        <div class="winner">
+          Player ${winner.id + 1} wins with ${winner.score} points!
+        </div>
+        <button class="play-again">Play Again</button>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add event listener to play again button
+    const playAgainBtn = modal.querySelector('.play-again');
+    if (playAgainBtn) {
+      playAgainBtn.addEventListener('click', () => {
+        modal.remove();
+        location.reload(); // Simple reload for now
+      });
+    }
+  }
+  
+  // Update getGrid to store cellTypes
+  getGrid(arrObj: GridRowAndCol) {
+    const { grid, cellTypes } = this.utility.generateGridCoin(arrObj);
+    this.playerPosition = this.utility.genrateRandom(this.totalPlayers, arrObj);
+    const clearedGrid = this.utility.clearPosition(this.playerPosition, grid);
+    this.cellTypes = cellTypes;
+    return clearedGrid;
+  }
+  
+  // ... rest of existing methods ...
+}

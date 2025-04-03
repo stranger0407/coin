@@ -1,0 +1,110 @@
+// Add to constants.ts
+export const CELL_TYPES = {
+  NORMAL: 'normal',
+  MAGNET: 'magnet',
+};
+
+export const MAGNET_POWER_LEVEL = 1; // 1st degree neighbors only for now, configurable
+
+// Update utility.ts - Add magnet cell generation
+export class Utility {
+  // ... existing code ...
+  
+  generateGridCoin(arrObj: RowAndColumn) {
+    const arr: number[][] = [];
+    const cellTypes: string[][] = []; // Track cell types (normal or magnet)
+    let magnetCount = 0;
+    const maxMagnets = Math.floor(Math.random() * 2) + 1; // 1 or 2 magnets
+    
+    for (let a = 0; a < arrObj.row; a++) {
+      arr[a] = [];
+      cellTypes[a] = [];
+      
+      for (let b = 0; b < arrObj.column; b++) {
+        const sum = Math.floor(Math.random() * 10);
+        
+        // Determine if this should be a magnet cell (rare)
+        const shouldBeMagnet = magnetCount < maxMagnets && 
+                             Math.random() > 0.95; // 5% chance per cell until we hit max
+        
+        if (sum === 0) {
+          arr[a][b] = 0;
+          cellTypes[a][b] = CELL_TYPES.NORMAL;
+        } else if (sum % 2 === 0) {
+          arr[a][b] = 3;
+          this.totalScore += 3;
+          cellTypes[a][b] = shouldBeMagnet && arr[a][b] > 0 ? CELL_TYPES.MAGNET : CELL_TYPES.NORMAL;
+        } else {
+          arr[a][b] = 5;
+          this.totalScore += 5;
+          cellTypes[a][b] = shouldBeMagnet && arr[a][b] > 0 ? CELL_TYPES.MAGNET : CELL_TYPES.NORMAL;
+        }
+        
+        if (cellTypes[a][b] === CELL_TYPES.MAGNET) {
+          magnetCount++;
+        }
+      }
+    }
+    
+    return { grid: arr, cellTypes: cellTypes };
+  }
+  
+  // ... rest of existing methods ...
+}
+
+// Update BoardView.ts to display magnet cells
+export class BoardView {
+  // ... existing code ...
+  
+  createGameBoard(coins: number[][], cellTypes: string[][], player: Array<Player>) {
+    const gameBoard: HTMLDivElement | null = document.querySelector('#game-board');
+    if (gameBoard) {
+      gameBoard.innerHTML = '';
+      gameBoard.style.gridTemplateColumns = `repeat(${coins.length}, 40px)`;
+      gameBoard.style.gridTemplateRows = `repeat(${coins[0].length}, 40px)`;
+      
+      for (let i = 0; i < coins.length; i++) {
+        for (let j = 0; j < coins[i].length; j++) {
+          const cell = document.createElement('div');
+          cell.classList.add('grid-item');
+          
+          // Apply different styling based on cell type
+          if (cellTypes[i][j] === CELL_TYPES.MAGNET && coins[i][j] > 0) {
+            cell.classList.add('magnet-cell');
+          }
+          
+          // Add empty-cell class if no coins
+          if (coins[i][j] === 0) {
+            cell.classList.add('empty-cell');
+          }
+          
+          cell.textContent = coins[i][j].toString();
+          gameBoard.appendChild(cell);
+          
+          // Add player to cell if present
+          const currentPlayer = player.find(p => p.position.x === i && p.position.y === j);
+          if (currentPlayer) {
+            cell.innerHTML = `<div class="player-icon ${currentPlayer.turn ? 'current-player' : ''}"></div>`;
+            cell.classList.add(`player-${currentPlayer.id}`); // Add player-specific color class
+            
+            if (currentPlayer.turn) {
+              cell.classList.add('current-player-cell');
+            }
+            
+            gameBoard.appendChild(cell);
+          }
+        }
+      }
+    }
+  }
+  
+  // Update display method to include cell types
+  displayGame(coins: number[][], cellTypes: string[][], player: Array<Player>) {
+    this.createGameBoard(coins, cellTypes, player);
+    this.displayScore(player);
+    this.displayTurn(player);
+    this.displayController();
+  }
+  
+  // ... rest of existing methods ...
+}

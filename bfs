@@ -1,0 +1,98 @@
+// Add to utility.ts
+export class Utility {
+  // ... existing code ...
+  
+  /**
+   * Collects coins from neighboring cells using BFS
+   * @param grid Current game grid
+   * @param cellTypes Types of cells in the grid
+   * @param player Current player
+   * @param level How many levels of neighbors to collect from
+   * @returns Updated grid and player
+   */
+  collectWithMagnet(grid: number[][], cellTypes: string[][], player: Player, level: number = MAGNET_POWER_LEVEL) {
+    const rows = grid.length;
+    const cols = grid[0].length;
+    const visited: boolean[][] = Array(rows).fill(false).map(() => Array(cols).fill(false));
+    const queue: {x: number, y: number, level: number}[] = [];
+    
+    // Start BFS from player position
+    const startX = player.position.x;
+    const startY = player.position.y;
+    queue.push({x: startX, y: startY, level: 0});
+    visited[startX][startY] = true;
+    
+    // Skip collecting from the start cell, it will be collected normally
+    
+    // Directions: up, down, left, right
+    const dx = [-1, 1, 0, 0];
+    const dy = [0, 0, -1, 1];
+    
+    while (queue.length > 0) {
+      const {x, y, level: currentLevel} = queue.shift()!;
+      
+      // If we've gone beyond the desired level, stop
+      if (currentLevel > level) {
+        continue;
+      }
+      
+      // For neighbors at current level, collect coins
+      if (currentLevel > 0 && currentLevel <= level) {
+        if (grid[x][y] > 0) {
+          player.score += grid[x][y];
+          this.totalScore -= grid[x][y];
+          grid[x][y] = 0;
+          cellTypes[x][y] = CELL_TYPES.NORMAL; // Remove magnet property if any
+        }
+      }
+      
+      // Add neighbors to queue
+      for (let i = 0; i < 4; i++) {
+        const newX = x + dx[i];
+        const newY = y + dy[i];
+        
+        // Check if valid and not visited
+        if (
+          newX >= 0 && newX < rows &&
+          newY >= 0 && newY < cols &&
+          !visited[newX][newY]
+        ) {
+          visited[newX][newY] = true;
+          queue.push({x: newX, y: newY, level: currentLevel + 1});
+        }
+      }
+    }
+    
+    return { grid, cellTypes, player };
+  }
+  
+  // Update existing addScore method to check for magnets
+  addScore(arr: number[][], cellTypes: string[][], player: Player) {
+    const isMagnet = cellTypes[player.position.x][player.position.y] === CELL_TYPES.MAGNET;
+    
+    // Collect coin from current cell
+    player.score += arr[player.position.x][player.position.y];
+    this.totalScore -= arr[player.position.x][player.position.y];
+    arr[player.position.x][player.position.y] = 0;
+    
+    // If magnet, collect from neighbors too
+    if (isMagnet) {
+      const result = this.collectWithMagnet(arr, cellTypes, player);
+      arr = result.grid;
+      cellTypes = result.cellTypes;
+      player = result.player;
+    }
+    
+    // Check for game over
+    if (this.totalScore === 0) {
+      console.log("game over");
+      // Trigger game over UI
+      const event = new CustomEvent('gameOver');
+      document.dispatchEvent(event);
+    }
+    
+    return { arr, cellTypes, player };
+  }
+  
+  // ... rest of existing methods ...
+}
